@@ -1,0 +1,435 @@
+---
+title: "Modeling House Sale Price in Ames, Iowa"
+author: "Hanna Grossman"
+date: "3/21/2019"
+output: html_document
+---
+
+#reading in data
+```{r}
+prices_train <- read.csv("HTrainW19Final.csv", stringsAsFactors = FALSE)
+prices_test <- read.csv("HTestW19Final No Y values.csv", stringsAsFactors = FALSE)
+```
+
+#imputing missing values
+```{r}
+#not everyone has an alley - NAs probably mean 0 
+for(i in 1:2500){
+  if(is.na(prices_train$Alley[i])==TRUE) prices_train$Alley[i] <- "No Alley"
+}
+
+for(i in 1:1500){
+  if(is.na(prices_test$Alley[i])==TRUE) prices_test$Alley[i] <- "No Alley"
+}
+
+
+#the NAs correspond to homes that do not have a fireplace
+for(i in 1:2500){
+  if(prices_train$Fireplaces[i]==0) prices_train$FireplaceQu[i] <- "Not Applicable"
+}
+
+for(i in 1:1500){
+  if(prices_test$Fireplaces[i]==0) prices_test$FireplaceQu[i] <- "Not Applicable"
+}
+
+#NAs are bc the house does not have a garage
+for(i in 1:2500){
+  if(prices_train$GarageArea[i]==0) prices_train$GarageType[i] <- "Not Applicable"
+}
+
+#imputing missing value for garage area
+which(is.na(prices_test$GarageArea))
+prices_test$GarageArea[629] <- median(prices_test$GarageArea, na.rm=TRUE)
+for(i in 1:1500){
+  if(prices_test$GarageArea[i]==0) prices_test$GarageType[i] <- "Not Applicable"
+}
+
+#NAs are bc the house does not have a garage
+for(i in 1:2500){
+  if(prices_train$GarageArea[i]==0) prices_train$GarageFinish[i] <- "Not Applicable"
+}
+
+for(i in 1:1500){
+  if(prices_test$GarageArea[i]==0) prices_test$GarageFinish[i] <- "Not Applicable"
+}
+
+#NAs are bc the house does not have a garage
+for(i in 1:2500){
+  if(prices_train$GarageArea[i]==0) prices_train$GarageQual[i] <- "Not Applicable"
+}
+
+for(i in 1:1500){
+  if(prices_test$GarageArea[i]==0) prices_test$GarageQual[i] <- "Not Applicable"
+}
+
+#NAs are bc the house does not have a garage
+for(i in 1:2500){
+  if(prices_train$GarageArea[i]==0) prices_train$GarageCond[i] <- "Not Applicable"
+}
+
+for(i in 1:1500){
+  if(prices_test$GarageArea[i]==0) prices_test$GarageCond[i] <- "Not Applicable"
+}
+
+
+#NAs are bc the house does not have a pool
+for(i in 1:2500){
+  if(prices_train$PoolArea[i]==0) prices_train$PoolQC[i] <- "Not Applicable"
+}
+
+for(i in 1:1500){
+  if(prices_test$PoolArea[i]==0) prices_test$PoolQC[i] <- "Not Applicable"
+}
+
+#fence type - make new category "no fence"
+for(i in 1:2500){
+  if(is.na(prices_train$Fence[i])==TRUE) prices_train$Fence[i] <- "No Fence"
+}
+
+for(i in 1:1500){
+  if(is.na(prices_test$Fence[i])==TRUE) prices_test$Fence[i] <- "No Fence"
+}
+
+#in Na-> there are no misc features
+for(i in 1:2500){
+  if(is.na(prices_train$MiscFeature[i])==TRUE) prices_train$MiscFeature[i] <- "No misc feature"
+}
+
+for(i in 1:1500){
+  if(is.na(prices_test$MiscFeature[i])==TRUE) prices_test$MiscFeature[i] <- "No misc feature"
+}
+
+#get rid of utilities
+prices_train <- prices_train[, c(1:9, 11:81)]
+prices_test <- prices_test[, c(1:9, 11:80)]
+```
+
+```{r}
+#imputing missing values using mice 
+a <- vector( length=80)
+for(i in 1:80){
+  a[i] <- sum(is.na(prices_train[i]))
+}
+a
+which(a!=0)
+prices_train_subset <- cbind(prices_train[,c(3,4,25,26,30,31,32,33,34,35,36,37,38,47,48,53,55,59,72,78)])
+sum(is.na(prices_train_subset))
+
+for(i in 1:20){
+  if(class(prices_train_subset[,i])=="character"){
+  prices_train_subset[,i] <- as.factor(prices_train_subset[,i])
+  }
+}
+
+library(mice)
+imputed_train <- mice(prices_train_subset, m=5, maxit = 50)
+train_imp_subset <- complete(imputed_train, 2)
+sum(is.na(train_imp_subset))
+
+train_imp <- prices_train
+train_imp[, c(3,4,25,26,30,31,32,33,34,35,36,37,38,47,48,53,55,59,72,78)] <- train_imp_subset
+sum(is.na(train_imp))
+write.csv(train_imp, file="train_imp_no_missing")
+train_imp <- read.csv("train_imp_no_missing")
+
+#for test data set 
+a <- vector( length=79)
+for(i in 1:79){
+  a[i] <- sum(is.na(prices_test[i]))
+}
+a
+which(a!=0)
+prices_test_subset <- cbind(prices_test[,c(3,4,23,24,25,26,30,31,32,33,34,35,36,37,38,42,47,48, 53, 55, 59, 60, 61, 63, 64)])
+sum(is.na(prices_test_subset))
+
+for(i in 1:25){
+  if(class(prices_test_subset[,i])=="character"){
+  prices_test_subset[,i] <- as.factor(prices_test_subset[,i])
+  }
+}
+
+library(mice)
+imputed_test <- mice(prices_test_subset, m=5, maxit = 50)
+test_imp_subset <- complete(imputed_test, 2)
+sum(is.na(test_imp_subset))
+
+test_imp <- prices_test
+test_imp[, c(3,4,23,24,25,26,30,31,32,33,34,35,36,37,38,42,47,48, 53, 55, 59, 60, 61, 63, 64)]<- test_imp_subset
+sum(is.na(test_imp))
+write.csv(test_imp, file="test_imp_no_missing")
+
+
+
+test_imp <- read.csv("test_imp_no_missing")
+train_imp <- read.csv("train_imp_no_missing")
+```
+
+#creating new variables: Age_new, TotalArea2, Neighborhood_Class, BsmtFinSF1_New
+```{r}
+#age_new
+train_imp$Age <- (train_imp$YrSold - train_imp$YearBuilt)
+for(i in 1:2500){
+  if(train_imp$Age[i]== -1 | train_imp$Age[i]== 0){
+  train_imp$Age[i] <- 1
+}
+}
+train_imp$Age_new <- train_imp$Age
+
+test_imp$Age <- (test_imp$YrSold - test_imp$YearBuilt)
+for(i in 1:1500){
+  if(test_imp$Age[i]== -1| test_imp$Age[i]== 0){
+  test_imp$Age[i] <- 1
+}
+}
+test_imp$Age_new <- test_imp$Age
+ 
+#TotalArea2
+train_imp$TotalArea2 <- train_imp$GarageArea + train_imp$GrLivArea + train_imp$MasVnrArea + train_imp$TotalBsmtSF+train_imp$X1stFlrSF+train_imp$X2ndFlrSF
+
+test_imp$TotalArea2 <- test_imp$GarageArea + test_imp$GrLivArea + test_imp$MasVnrArea + test_imp$TotalBsmtSF+test_imp$X1stFlrSF+test_imp$X2ndFlrSF
+
+#making it so we can transform BsmtFinSF1
+train_imp$BsmtFinSF1_New<- ifelse(train_imp$BsmtFinSF1==0, 1, train_imp$BsmtFinSF1)
+test_imp$BsmtFinSF1_New<- ifelse(test_imp$BsmtFinSF1==0, 1, test_imp$BsmtFinSF1)
+
+#Neighborhood_Class
+boxplot(SalePrice ~ Neighborhood, data=train_imp)
+train_imp$Neighborhood_Class <- NA
+for(i in 1:2500){
+  if(train_imp$Neighborhood[i] == "MeadowV"| train_imp$Neighborhood[i] =="BrDale"| train_imp$Neighborhood[i] =="BrkSide" | train_imp$Neighborhood[i] =="Edwards"| train_imp$Neighborhood[i] =="IDOTRR"| train_imp$Neighborhood[i] =="OldTown"| train_imp$Neighborhood[i] =="Sawyer"| train_imp$Neighborhood[i] =="SWISU"  ){
+  train_imp$Neighborhood_Class[i] <- "low"
+}
+}
+
+for(i in 1:2500){
+  if(train_imp$Neighborhood[i] == "Gilbert"| train_imp$Neighborhood[i] =="SawyerW"| train_imp$Neighborhood[i] =="NWAmes" | train_imp$Neighborhood[i] =="Mitchel"| train_imp$Neighborhood[i] =="Blueste"| train_imp$Neighborhood[i] =="NPkVill"| train_imp$Neighborhood[i] =="NAmes"){
+  train_imp$Neighborhood_Class[i] <- "middle"
+}
+}
+
+
+for(i in 1:2500){
+  if(train_imp$Neighborhood[i] == "Timber"| train_imp$Neighborhood[i] =="Veenker"| train_imp$Neighborhood[i] =="Somerst" | train_imp$Neighborhood[i] =="Blmngtn"| train_imp$Neighborhood[i] =="ClearCr"| train_imp$Neighborhood[i] =="Crawfor"| train_imp$Neighborhood[i] =="CollgCr" ){
+  train_imp$Neighborhood_Class[i] <- "high"
+}
+}
+
+for(i in 1:2500){
+  if(train_imp$Neighborhood[i] == "NridgHt"| train_imp$Neighborhood[i] =="NoRidge"| train_imp$Neighborhood[i] =="StoneBr"){
+  train_imp$Neighborhood_Class[i] <- "very high"
+}
+}
+
+#now for test set: 
+test_imp$Neighborhood_Class <- NA
+for(i in 1:1500){
+  if(test_imp$Neighborhood[i] == "MeadowV"| test_imp$Neighborhood[i] =="BrDale"| test_imp$Neighborhood[i] =="BrkSide" | test_imp$Neighborhood[i] =="Edwards"| test_imp$Neighborhood[i] =="IDOTRR"| test_imp$Neighborhood[i] =="OldTown"| test_imp$Neighborhood[i] =="Sawyer"| test_imp$Neighborhood[i] =="SWISU"  ){
+  test_imp$Neighborhood_Class[i] <- "low"
+}
+}
+
+for(i in 1:1500){
+  if(test_imp$Neighborhood[i] == "Gilbert"| test_imp$Neighborhood[i] =="SawyerW"| test_imp$Neighborhood[i] =="NWAmes" | test_imp$Neighborhood[i] =="Mitchel"| test_imp$Neighborhood[i] =="Blueste"| test_imp$Neighborhood[i] =="NPkVill"| test_imp$Neighborhood[i] =="NAmes"){
+  test_imp$Neighborhood_Class[i] <- "middle"
+}
+}
+
+
+for(i in 1:1500){
+  if(test_imp$Neighborhood[i] == "Timber"| test_imp$Neighborhood[i] =="Veenker"| test_imp$Neighborhood[i] =="Somerst" | test_imp$Neighborhood[i] =="Blmngtn"| test_imp$Neighborhood[i] =="ClearCr"| test_imp$Neighborhood[i] =="Crawfor"| test_imp$Neighborhood[i] =="CollgCr" ){
+  test_imp$Neighborhood_Class[i] <- "high"
+}
+}
+
+for(i in 1:1500){
+  if(test_imp$Neighborhood[i] == "NridgHt"| test_imp$Neighborhood[i] =="NoRidge"| test_imp$Neighborhood[i] =="StoneBr"){
+  test_imp$Neighborhood_Class[i] <- "very high"
+}
+}
+
+
+write.csv(train_imp, file="train_imp_new_vars.csv")
+write.csv(test_imp, file="test_imp_new_vars.csv")
+```
+
+#Now we have a new train and test set that is imputed, and has new vars
+```{r}
+train_imp <- read.csv("train_imp_new_vars.csv")
+train_imp <- train_imp[, 3:87]
+test_imp <- read.csv("test_imp_new_vars.csv")
+test_imp <- test_imp[, 3:86]
+```
+
+
+#deciding which predictors are best for model
+```{r}
+model <- lm(SalePrice ~ . , data=train_imp)
+n <- length(train_imp$SalePrice)
+backBIC <- step(model, direction="backward", data=train_imp, k=log(n))
+backBIC_model <- lm(SalePrice ~ MSSubClass + LotArea + LandContour + Neighborhood + 
+    Condition2 + OverallQual + OverallCond + YearBuilt + RoofMatl + 
+    MasVnrArea + ExterQual + BsmtQual + BsmtExposure + BsmtFinSF1 + 
+    BsmtFinSF2 + BsmtUnfSF + CentralAir + X1stFlrSF + X2ndFlrSF + 
+    BsmtFullBath + KitchenQual + Fireplaces + GarageArea + ScreenPorch + 
+    MiscFeature + MiscVal, data= train_imp)
+
+#creating a subset of train_imp with variables we think may be important that can go through aic and bic again
+train_imp_sub <- cbind(train_imp$Neighborhood_Class , train_imp$Age_new, train_imp$TotalArea2, train_imp$MSSubClass, train_imp$LotArea,   train_imp$LandContour, train_imp$Neighborhood, train_imp$Condition2, train_imp$OverallQual, train_imp$OverallCond, train_imp$YearBuilt, train_imp$RoofMatl, train_imp$MasVnrArea, train_imp$ExterQual, train_imp$BsmtQual, train_imp$BsmtExposure, train_imp$BsmtFinSF1_New, train_imp$BsmtFinSF2, train_imp$BsmtUnfSF, train_imp$CentralAir, train_imp$X1stFlrSF,  train_imp$X2ndFlrSF, train_imp$BsmtFullBath, train_imp$KitchenQual, train_imp$Fireplaces, train_imp$GarageArea, train_imp$ScreenPorch, train_imp$MiscFeature, train_imp$MiscVal, train_imp$SalePrice)
+
+train_imp_sub <- as.data.frame(train_imp_sub, stringsAsFactors = FALSE)
+colnames(train_imp_sub) <- c("Neighborhood_Class", "Age_new", "TotalArea2", "MSSubClass", "LotArea",   "LandContour", "Neighborhood", "Condition2", "OverallQual", "OverallCond", "YearBuilt", "RoofMatl", "MasVnrArea", "ExterQual", "BsmtQual", "BsmtExposure", "BsmtFinSF1_New", "BsmtFinSF2", "BsmtUnfSF", "CentralAir", "X1stFlrSF",  "X2ndFlrSF", "BsmtFullBath", "KitchenQual", "Fireplaces", "GarageArea", "ScreenPorch", "MiscFeature", "MiscVal", "SalePrice")
+model_sub <- lm(SalePrice ~ . , data=train_imp_sub)
+summary(model_sub)
+backAIC <- step(model_sub, direction = "backward", data=train_imp)
+backAIC_model <- lm(SalePrice ~ Neighborhood_Class + Age_new + MSSubClass + LotArea + 
+    LandContour + Neighborhood + Condition2 + OverallQual + OverallCond + 
+    RoofMatl + MasVnrArea + ExterQual + BsmtQual + BsmtExposure + 
+    BsmtFinSF1_New + BsmtFinSF2 + BsmtUnfSF + X1stFlrSF + X2ndFlrSF + 
+    BsmtFullBath + KitchenQual + Fireplaces + GarageArea + ScreenPorch + 
+    MiscVal, data=train_imp)
+summary(backAIC_model)
+
+n <- length(train_imp$SalePrice)
+backBIC <- step(model_sub, direction="backward", data=train_imp, k=log(n))
+
+backBIC_model <- lm(SalePrice ~ Neighborhood_Class + Age_new + MSSubClass + LotArea + 
+    Condition2 + OverallQual + OverallCond + RoofMatl + MasVnrArea + 
+    ExterQual + BsmtQual + BsmtExposure + BsmtFinSF1_New + BsmtFinSF2 + 
+    BsmtUnfSF + X1stFlrSF + X2ndFlrSF + BsmtFullBath + KitchenQual + 
+    Fireplaces + GarageArea + ScreenPorch + MiscVal, data= train_imp)
+summary(backBIC_model)
+```
+
+#exploring the variables in backBIC_model, and creating a final model 
+```{r}
+model_final <- lm(formula = SalePrice ~  Age_new  + TotalArea2+  Neighborhood_Class  + OverallQual +LotArea+ BsmtFinSF1_New, data = train_imp)
+summary(model_final)
+plot(model_final)
+library(car) 
+vif(model_final)
+```
+
+#fixing diagnostic plots by transforming variables
+```{r}
+inverseResponsePlot(model_final, key=TRUE)
+
+#For the numeric predictors without zero values 
+summary(powerTransform(cbind(train_imp$TotalArea2, train_imp$OverallQual, train_imp$Age_new, train_imp$LotArea,train_imp$BsmtFinSF1_New )~1))
+
+train_imp$TotalArea2_Transformed <- train_imp$TotalArea2^(.25)
+train_imp$Age_new_Transformed <- train_imp$Age_new^(1/3)
+train_imp$LotArea_Transformed <- log(train_imp$LotArea)
+train_imp$BsmtFinSF1_New_Transformed <- train_imp$BsmtFinSF1_New^(.25)
+
+test_imp$TotalArea2_Transformed <- test_imp$TotalArea2^(.25)
+test_imp$Age_new_Transformed <- test_imp$Age_new^(1/3)
+test_imp$LotArea_Transformed <- log(test_imp$LotArea)
+test_imp$BsmtFinSF1_New_Transformed <- test_imp$BsmtFinSF1_New^(.25)
+
+write.csv(train_imp, file="train_imp_FINAL.csv")
+write.csv(test_imp, file="test_imp_FINAL.csv")
+
+
+model_final2 <- lm(formula = SalePrice^.25 ~  Age_new_Transformed  + TotalArea2_Transformed +  Neighborhood_Class  + OverallQual +LotArea_Transformed+ BsmtFinSF1_New_Transformed, data = train_imp)
+
+summary(model_final2)
+#we now have an R2 of 0.9036
+```
+
+#adding interaction terms  - FINAL MODEL: model_final3
+```{r}
+model_final3 <- lm(formula = SalePrice^.25 ~  Age_new_Transformed  + TotalArea2_Transformed *  Neighborhood_Class  + OverallQual +LotArea_Transformed+ BsmtFinSF1_New_Transformed, data = train_imp)
+summary(model_final3)
+#we now have an R2 of 0.9105
+```
+
+#analyzing final data
+```{r}
+dim(train_imp)
+colnames(train_imp)
+summary(train_imp$SalePrice)
+summary(model_final3)
+#final R2: 0.9105
+#final adjusted R2: 0.9101 
+#total number of predictors: 6
+#total number of betas: 11
+anova(model_final3)
+
+library(lm.beta)
+a <- lm.beta(model_final3)
+vec <- a$standardized.coefficients
+sort(vec)
+```
+Categorical Predictors: Neighborhood_Class
+Numerical Predictors: Age_new_Transformed, TotalArea2_Transformed, OverallQual, LotArea_Transformed, BsmtFinSF1_New_Transformed
+
+#analyzing diagnostics and leverage/outliers
+```{r}
+plot(model_final3)
+
+#bad leverage
+cc<-cooks.distance(model_final3)
+mm1<-which(cc>4/2488)
+length(mm1)
+#176
+summary((model_final3$fitted.values[mm1])^(4))
+summary(train_imp[mm1,80])
+176/2500
+#only 7% of the data points are bad leverage 
+```
+
+#AIC, BIC, and regsubsets one final time
+```{r}
+backAIC <- step(model_final3,direction="backward", data=train_imp)
+#kept all 6 predictors and interaction term
+
+n <- length(train_imp$SalePrice)
+backBIC <- step(model_final3, direction="backward", data=train_imp, k=log(n))
+#kept all 6 predictors and interaction term
+
+m <- lm((SalePrice^0.25) ~ 1, data=train_imp )
+forwardAIC <- step(m,scope=list(lower=~1,
+upper=~Age_new_Transformed  + TotalArea2_Transformed *  Neighborhood_Class  + OverallQual +LotArea_Transformed+ BsmtFinSF1_New_Transformed),
+direction="forward", data=train_imp)
+#kept all 6 predictors and interaction term
+
+forwardBIC <- step(m,scope=list(lower=~1,
+upper=~Age_new_Transformed  + TotalArea2_Transformed *  Neighborhood_Class  + OverallQual +LotArea_Transformed+ BsmtFinSF1_New_Transformed),
+direction="forward", data=train_imp, k=log(n))
+#kept all 6 predictors and interaction term
+
+library(leaps)
+b <- regsubsets((SalePrice^0.75) ~ Age_new_Transformed  + TotalArea2_Transformed *  Neighborhood_Class  + OverallQual +LotArea_Transformed+ BsmtFinSF1_New_Transformed,data=train_imp, method="exhaustive", nvmax=20)
+rs <- summary(b)
+
+plot(b, scale="adjr2")
+plot(b, scale="Cp")
+plot(b, scale="bic")
+```
+
+Here we see it is best to keep all 6 predictors, and the interaction term in terms of adjusted R2, AIC, and BIC  
+ 
+#making and exporting predictions
+```{r}
+prediction <- predict(model_final3, test_imp)
+prediction <- prediction^(4)
+prediction <- as.data.frame(prediction)
+colnames(prediction) <- "SalePrice"
+#exporting predictions to csv
+write.csv(prediction, file="FINAL_prediction.csv")
+
+summary(prediction)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
